@@ -1,0 +1,13 @@
+# 记个小账 · URL 重写与安全规则（Apache，可选）
+
+# 开启 Rewrite（如需 /book/xxx 形式的短 URL 可自行启用）
+# RewriteEngine On
+# RewriteRule ^book/(.+)$ book.php?code=$1 [L,QSA]
+
+# 禁止访问敏感文件
+<FilesMatch "(^\.|composer\.(json|lock)|\.sql$|\.md$)">
+    Require all denied
+</FilesMatch>
+
+# 默认字符集
+AddDefaultCharset UTF-8
