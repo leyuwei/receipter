@@ -144,16 +144,99 @@
         return arr;
     }
 
+    /* 货币代码 → 中文名映射 */
+    const CURRENCY_NAMES = {
+        CNY: '人民币', USD: '美元', EUR: '欧元', JPY: '日元',
+        HKD: '港币', TWD: '台币', GBP: '英镑', KRW: '韩元',
+    };
+    /* 货币 → 人民币参考汇率（1 单位外币 ≈ X 人民币） */
+    const CNY_RATES = {
+        CNY: 1, USD: 7.25, EUR: 7.85, JPY: 0.046,
+        HKD: 0.93, TWD: 0.22, GBP: 9.20, KRW: 0.0053,
+    };
+    function currencyLabel(code) {
+        const name = CURRENCY_NAMES[code] || code;
+        return code + ' ' + name;
+    }
+
     function renderSummary(entries) {
         $('#sum-count').textContent = entries.length;
-        let expense = 0, income = 0;
+
+        // 按货币分别统计收入/支出
+        const byCurrency = {}; // { CNY: { expense, income }, USD: {...} }
         entries.forEach(e => {
+            const cur = e.currency || 'CNY';
+            if (!byCurrency[cur]) byCurrency[cur] = { expense: 0, income: 0 };
             const amt = parseFloat(e.amount) || 0;
-            if (e.type === '收入') income += amt;
-            else if (e.type === '支出') expense += amt;
+            if (e.type === '收入') byCurrency[cur].income += amt;
+            else if (e.type === '支出') byCurrency[cur].expense += amt;
         });
-        $('#sum-expense').textContent = expense.toFixed(2);
-        $('#sum-income').textContent = income.toFixed(2);
+
+        const currencies = Object.keys(byCurrency).sort();
+
+        // 人民币折算总值（收入 - 支出）
+        let cnyTotal = 0;
+        currencies.forEach(cur => {
+            const rate = CNY_RATES[cur] != null ? CNY_RATES[cur] : 1;
+            const net = byCurrency[cur].income - byCurrency[cur].expense;
+            cnyTotal += net * rate;
+        });
+        $('#sum-cny').textContent = (cnyTotal >= 0 ? '+' : '') + cnyTotal.toFixed(2);
+
+        // 单货币时显示该货币净额，多货币时显示已折算
+        const noteEl = $('#sum-cny-note');
+        if (currencies.length === 1) {
+            const cur = currencies[0];
+            const net = byCurrency[cur].income - byCurrency[cur].expense;
+            noteEl.textContent = '原始净额：' + currencyLabel(cur) + ' ' + net.toFixed(2);
+        } else {
+            noteEl.textContent = '共 ' + currencies.length + ' 种货币，已按参考汇率折算';
+        }
+
+        // 各货币收支明细（平等展示）
+        const multiCard = $('#sum-multi-card');
+        const multiList = $('#sum-multi-list');
+        if (currencies.length === 0) {
+            multiCard.style.display = 'none';
+            return;
+        }
+        multiCard.style.display = '';
+
+        // 按人民币折算绝对值降序排列
+        const sorted = currencies.slice().sort((a, b) => {
+            const av = Math.abs((byCurrency[a].income - byCurrency[a].expense) * (CNY_RATES[a] || 1));
+            const bv = Math.abs((byCurrency[b].income - byCurrency[b].expense) * (CNY_RATES[b] || 1));
+            return bv - av;
+        });
+
+        const head = '<div class="sm-head">' +
+            '<span>货币</span>' +
+            '<span style="text-align:right">支出</span>' +
+            '<span style="text-align:right">收入</span>' +
+            '<span style="text-align:right">净额</span>' +
+            '<span style="text-align:right">≈ 人民币</span>' +
+        '</div>';
+
+        const rows = sorted.map(cur => {
+            const d = byCurrency[cur];
+            const rate = CNY_RATES[cur] != null ? CNY_RATES[cur] : 1;
+            const net = d.income - d.expense;
+            const cny = net * rate;
+            const netClass = net >= 0 ? 'pos' : 'neg';
+            const netSign = net >= 0 ? '+' : '';
+            const cnySign = cny >= 0 ? '+' : '';
+            const name = CURRENCY_NAMES[cur] || '';
+            return '<div class="sm-row">' +
+                '<span class="sm-cur"><span class="sm-code">' + escapeHtml(cur) + '</span>' +
+                    (name ? '<span class="sm-name">' + escapeHtml(name) + '</span>' : '') + '</span>' +
+                '<span class="sm-exp">' + d.expense.toFixed(2) + '</span>' +
+                '<span class="sm-inc">' + d.income.toFixed(2) + '</span>' +
+                '<span class="sm-net ' + netClass + '">' + netSign + net.toFixed(2) + '</span>' +
+                '<span class="sm-cny">' + cnySign + cny.toFixed(2) + '</span>' +
+            '</div>';
+        }).join('');
+
+        multiList.innerHTML = head + (rows || '<div class="sm-empty">暂无数据</div>');
     }
 
     function renderEntries(entries) {
@@ -192,7 +275,7 @@
                 '</div>' +
                 '<div class="entry-amount-col">' +
                     '<div class="entry-amount ' + amtClass + '">' + (e.type === '支出' ? '-' : e.type === '收入' ? '+' : '') + formatAmount(e.amount) + '</div>' +
-                    '<div class="entry-currency">' + escapeHtml(e.currency) + '</div>' +
+                    '<div class="entry-currency">' + escapeHtml(currencyLabel(e.currency || 'CNY')) + '</div>' +
                 '</div>' +
                 '<div class="entry-actions">' +
                     '<button class="btn ghost" data-act="edit">编辑</button>' +
@@ -406,6 +489,111 @@
         }
     }
 
+    /* ---------- 打印 ---------- */
+    function printBook() {
+        if (!bookData || !bookData.entries) return;
+        const entries = applySort(bookData.entries);
+        const area = $('#print-area');
+        if (!area) return;
+
+        // 按货币分组统计
+        const byCurrency = {};
+        entries.forEach(e => {
+            const cur = e.currency || 'CNY';
+            if (!byCurrency[cur]) byCurrency[cur] = { expense: 0, income: 0 };
+            const amt = parseFloat(e.amount) || 0;
+            if (e.type === '收入') byCurrency[cur].income += amt;
+            else if (e.type === '支出') byCurrency[cur].expense += amt;
+        });
+        const currencies = Object.keys(byCurrency).sort();
+        let cnyTotal = 0;
+        currencies.forEach(cur => {
+            const rate = CNY_RATES[cur] != null ? CNY_RATES[cur] : 1;
+            cnyTotal += (byCurrency[cur].income - byCurrency[cur].expense) * rate;
+        });
+
+        // 表格行
+        const rows = entries.map((e, i) => {
+            const amt = parseFloat(e.amount) || 0;
+            const sign = e.type === '支出' ? '-' : (e.type === '收入' ? '+' : '');
+            const curLabel = currencyLabel(e.currency || 'CNY');
+            return '<tr>' +
+                '<td class="col-no">' + (i + 1) + '</td>' +
+                '<td class="col-date">' + escapeHtml(e.entry_date || '') + '</td>' +
+                '<td class="col-type"><span class="ptag pt-' + escapeHtml(e.type) + '">' + escapeHtml(e.type) + '</span></td>' +
+                '<td class="col-detail">' + escapeHtml(e.detail || '') + '</td>' +
+                '<td class="col-people">' +
+                    (e.payer ? '付：' + escapeHtml(e.payer) : '') +
+                    (e.payee ? (e.payer ? ' / ' : '') + '收：' + escapeHtml(e.payee) : '') +
+                '</td>' +
+                '<td class="col-amt">' + sign + amt.toFixed(2) + ' <span class="pcur">' + escapeHtml(curLabel) + '</span></td>' +
+                '<td class="col-loan">' + (e.is_loan ? '借 · ' + escapeHtml(e.borrower || '') : '') + '</td>' +
+            '</tr>';
+        }).join('');
+
+        // 各货币汇总
+        const sumRows = currencies.map(cur => {
+            const d = byCurrency[cur];
+            const rate = CNY_RATES[cur] != null ? CNY_RATES[cur] : 1;
+            const cny = (d.income - d.expense) * rate;
+            return '<tr>' +
+                '<td class="ps-cur">' + escapeHtml(currencyLabel(cur)) + '</td>' +
+                '<td class="ps-exp">支出 ' + d.expense.toFixed(2) + '</td>' +
+                '<td class="ps-inc">收入 ' + d.income.toFixed(2) + '</td>' +
+                '<td class="ps-net">净额 ' + (d.income - d.expense >= 0 ? '+' : '') + (d.income - d.expense).toFixed(2) + '</td>' +
+                '<td class="ps-cny">≈ ' + (cny >= 0 ? '+' : '') + cny.toFixed(2) + ' CNY</td>' +
+            '</tr>';
+        }).join('');
+
+        const now = new Date();
+        const dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+
+        area.innerHTML =
+            '<div class="print-header">' +
+                '<div class="ph-left">' +
+                    '<div class="ph-title">' + escapeHtml(bookData.book.name) + '</div>' +
+                    '<div class="ph-sub">账本标识：' + escapeHtml(bookData.book.code) + '</div>' +
+                '</div>' +
+                '<div class="ph-right">' +
+                    '<div class="ph-brand">记个小账</div>' +
+                    '<div class="ph-date">打印日期：' + dateStr + '</div>' +
+                '</div>' +
+            '</div>' +
+
+            '<div class="print-cny-banner">' +
+                '<span class="pcb-label">人民币折算净值（参考）</span>' +
+                '<span class="pcb-value">' + (cnyTotal >= 0 ? '+' : '') + cnyTotal.toFixed(2) + ' CNY</span>' +
+            '</div>' +
+
+            '<table class="print-table">' +
+                '<thead><tr>' +
+                    '<th class="col-no">#</th>' +
+                    '<th class="col-date">日期</th>' +
+                    '<th class="col-type">类型</th>' +
+                    '<th class="col-detail">详情</th>' +
+                    '<th class="col-people">收付方</th>' +
+                    '<th class="col-amt">金额</th>' +
+                    '<th class="col-loan">备注</th>' +
+                '</tr></thead>' +
+                '<tbody>' + (rows || '<tr><td colspan="7" class="empty">暂无账目</td></tr>') + '</tbody>' +
+            '</table>' +
+
+            '<table class="print-summary">' +
+                '<thead><tr>' +
+                    '<th class="ps-cur">货币</th>' +
+                    '<th class="ps-exp">支出</th>' +
+                    '<th class="ps-inc">收入</th>' +
+                    '<th class="ps-net">净额</th>' +
+                    '<th class="ps-cny">≈ 人民币</th>' +
+                '</tr></thead>' +
+                '<tbody>' + sumRows + '</tbody>' +
+            '</table>' +
+
+            '<div class="print-footer">共 ' + entries.length + ' 条账目 · 由「记个小账」生成</div>';
+
+        window.print();
+    }
+
     /* ---------- 工具 ---------- */
     function escapeHtml(s) {
         if (s == null) return '';
@@ -427,10 +615,25 @@
         $('#entry-is-loan').addEventListener('change', toggleBorrower);
         $('#form-entry').addEventListener('submit', submitEntry);
 
-        $('#btn-export-json').addEventListener('click', () => doExport('json'));
+        // 导出下拉菜单
+        const exportBtn = $('#btn-export');
+        const exportMenu = $('#export-menu');
+        exportBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            exportMenu.classList.toggle('open');
+        });
+        document.addEventListener('click', () => exportMenu.classList.remove('open'));
+        $$('.dropdown-item', exportMenu).forEach(item => {
+            item.addEventListener('click', () => {
+                exportMenu.classList.remove('open');
+                doExport(item.dataset.fmt);
+            });
+        });
+
         $('#btn-import').addEventListener('click', openImport);
         $('#import-cancel').addEventListener('click', () => $('#modal-import').classList.add('hidden'));
         $('#import-ok').addEventListener('click', doImport);
+        $('#btn-print').addEventListener('click', printBook);
 
         $('#sort-key').addEventListener('change', e => {
             currentSort.key = e.target.value;

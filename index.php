@@ -13,7 +13,7 @@ $base = rtrim(APP_BASE_PATH, '/');
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <title>记个小账 · Receipter</title>
 <link rel="icon" type="image/svg+xml" href="<?= htmlspecialchars($base) ?>/assets/img/logo.svg">
-<link rel="stylesheet" href="<?= htmlspecialchars($base) ?>/assets/css/style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars($base) ?>/assets/css/style.css?v=3">
 </head>
 <body class="page-home">
 <div class="wrap home-card">
@@ -58,6 +58,6 @@ $base = rtrim(APP_BASE_PATH, '/');
 <script>
 window.APP_BASE = <?= json_encode($base) ?>;
 </script>
-<script src="<?= htmlspecialchars($base) ?>/assets/js/app.js"></script>
+<script src="<?= htmlspecialchars($base) ?>/assets/js/app.js?v=3"></script>
 </body>
 </html>

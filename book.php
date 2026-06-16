@@ -14,7 +14,7 @@ $code = sstr($_GET['code'] ?? '', 255);
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <title>账本 · 记个小账</title>
 <link rel="icon" type="image/svg+xml" href="<?= htmlspecialchars($base) ?>/assets/img/logo.svg">
-<link rel="stylesheet" href="<?= htmlspecialchars($base) ?>/assets/css/style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars($base) ?>/assets/css/style.css?v=6">
 </head>
 <body class="page-book">
 <header class="topbar">
@@ -26,8 +26,16 @@ $code = sstr($_GET['code'] ?? '', 255);
         </div>
     </div>
     <div class="topbar-right">
-        <button type="button" class="btn ghost" id="btn-export-json" title="导出 JSON">导出</button>
+        <div class="dropdown">
+            <button type="button" class="btn ghost" id="btn-export" title="导出">导出 ▾</button>
+            <div class="dropdown-menu" id="export-menu">
+                <button type="button" class="dropdown-item" data-fmt="xlsx">Excel (.xlsx)</button>
+                <button type="button" class="dropdown-item" data-fmt="csv">CSV (.csv)</button>
+                <button type="button" class="dropdown-item" data-fmt="json">JSON (.json)</button>
+            </div>
+        </div>
         <button type="button" class="btn ghost" id="btn-import" title="导入">导入</button>
+        <button type="button" class="btn ghost" id="btn-print" title="打印账本">打印</button>
         <a class="btn ghost" href="<?= htmlspecialchars($base) ?>/index.php">返回</a>
     </div>
 </header>
@@ -35,17 +43,18 @@ $code = sstr($_GET['code'] ?? '', 255);
 <main class="book-main">
     <!-- 汇总卡片 -->
     <section class="summary" id="summary">
-        <div class="sum-card">
+        <div class="sum-card sum-card-count">
             <div class="sum-label">账目数</div>
             <div class="sum-value" id="sum-count">0</div>
         </div>
-        <div class="sum-card">
-            <div class="sum-label">支出合计</div>
-            <div class="sum-value expense" id="sum-expense">0.00</div>
+        <div class="sum-card sum-card-cny">
+            <div class="sum-label">人民币折算总值 <span class="sum-hint" title="基于参考汇率的估算值">参考</span></div>
+            <div class="sum-value cny" id="sum-cny">0.00</div>
+            <div class="sum-sub-note" id="sum-cny-note"></div>
         </div>
-        <div class="sum-card">
-            <div class="sum-label">收入合计</div>
-            <div class="sum-value income" id="sum-income">0.00</div>
+        <div class="sum-card sum-card-multi" id="sum-multi-card" style="display:none">
+            <div class="sum-label">各货币收支明细</div>
+            <div class="sum-multi-list" id="sum-multi-list"></div>
         </div>
     </section>
 
@@ -160,10 +169,13 @@ $code = sstr($_GET['code'] ?? '', 255);
     </div>
 </div>
 
+<!-- 打印专用区域（仅 @media print 时可见） -->
+<div id="print-area" class="print-area"></div>
+
 <script>
 window.APP_BASE = <?= json_encode($base) ?>;
 window.BOOK_CODE = <?= json_encode($code) ?>;
 </script>
-<script src="<?= htmlspecialchars($base) ?>/assets/js/app.js"></script>
+<script src="<?= htmlspecialchars($base) ?>/assets/js/app.js?v=6"></script>
 </body>
 </html>

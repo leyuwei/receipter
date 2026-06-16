@@ -98,14 +98,53 @@ code{background:rgba(91,141,239,.1);padding:2px 6px;border-radius:4px;font-famil
 .topbar-sub{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50vw}
 .topbar-right{display:flex;gap:6px;flex-shrink:0}
 
+/* ========== 下拉菜单 ========== */
+.dropdown{position:relative}
+.dropdown-menu{
+    display:none;position:absolute;right:0;top:calc(100% + 4px);
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+    box-shadow:var(--shadow-lg);min-width:150px;z-index:100;overflow:hidden;
+}
+.dropdown-menu.open{display:block}
+.dropdown-item{
+    display:block;width:100%;padding:10px 14px;border:none;background:transparent;
+    color:var(--text);font-size:14px;text-align:left;cursor:pointer;transition:.15s;
+}
+.dropdown-item:hover{background:rgba(91,141,239,.08);color:var(--primary)}
+
 /* ========== 账本主体 ========== */
 .book-main{max-width:900px;margin:0 auto;padding:18px 16px 80px}
-.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
 .sum-card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);text-align:center}
+.sum-card-cny{grid-column:span 1}
+.sum-card-multi{grid-column:1/-1}
 .sum-label{font-size:12px;color:var(--text-2);margin-bottom:6px}
 .sum-value{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
-.sum-value.expense{color:var(--expense)}
-.sum-value.income{color:var(--income)}
+.sum-value.cny{color:var(--primary)}
+.sum-hint{display:inline-block;font-size:10px;color:var(--text-3);background:var(--bg);padding:1px 6px;border-radius:4px;font-weight:400;margin-left:4px;vertical-align:middle}
+.sum-sub-note{font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.5}
+.sum-multi-list{margin-top:10px}
+.sm-head{
+    display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1.1fr;gap:6px;
+    font-size:11px;color:var(--text-3);font-weight:600;
+    padding:0 10px 6px;border-bottom:2px solid var(--border);
+}
+.sm-row{
+    display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1.1fr;gap:6px;
+    align-items:center;padding:8px 10px;font-size:13px;border-radius:8px;
+    transition:.12s;
+}
+.sm-row:hover{background:var(--bg)}
+.sm-cur{font-weight:600;display:flex;flex-direction:column;gap:2px}
+.sm-cur .sm-code{font-size:13px}
+.sm-cur .sm-name{font-size:10px;color:var(--text-3);font-weight:400}
+.sm-exp{color:var(--expense);font-variant-numeric:tabular-nums;text-align:right}
+.sm-inc{color:var(--income);font-variant-numeric:tabular-nums;text-align:right}
+.sm-net{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.sm-net.pos{color:var(--income)}
+.sm-net.neg{color:var(--expense)}
+.sm-cny{color:var(--primary);font-variant-numeric:tabular-nums;text-align:right;font-weight:500;font-size:12px}
+.sm-empty{font-size:13px;color:var(--text-3);text-align:center;padding:14px}
 
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .sort-area{display:flex;gap:6px;align-items:center}
@@ -175,8 +214,8 @@ code{background:rgba(91,141,239,.1);padding:2px 6px;border-radius:4px;font-famil
 
 /* ========== 响应式 ========== */
 @media (max-width:640px){
-    .summary{grid-template-columns:1fr 1fr}
-    .sum-card:last-child{grid-column:1/-1}
+    .summary{grid-template-columns:1fr}
+    .sum-card-count{grid-column:span 1}
     .form-grid{grid-template-columns:1fr}
     .topbar{padding:10px 14px}
     .topbar-right .btn{padding:7px 10px;font-size:13px}
@@ -184,6 +223,107 @@ code{background:rgba(91,141,239,.1);padding:2px 6px;border-radius:4px;font-famil
     .entry-card{grid-template-columns:20px 1fr;padding:12px}
     .entry-amount-col{grid-column:2/-1;text-align:left}
     .home-card{padding:30px 20px}
+    .sm-head,.sm-row{grid-template-columns:1fr;gap:2px;padding:8px 10px}
+    .sm-head{display:none}
+    .sm-cur{order:0;margin-bottom:4px}
+    .sm-exp::before{content:'支出：';font-weight:600;color:var(--text-2)}
+    .sm-inc::before{content:'收入：';font-weight:600;color:var(--text-2)}
+    .sm-net::before{content:'净额：';font-weight:600;color:var(--text-2)}
+    .sm-cny::before{content:'≈ ';font-weight:600;color:var(--text-2)}
+}
+
+/* ========== 打印区域（屏幕不可见） ========== */
+.print-area{display:none}
+
+/* ========== A4 打印样式 ========== */
+@media print{
+    @page{
+        size:A4;
+        margin:8mm 8mm;
+    }
+
+    /* 彻底隐藏屏幕内容，消除空白第二页 */
+    html,body{background:#fff !important;height:auto !important;overflow:visible !important}
+    body>*:not(.print-area){display:none !important}
+    .print-area{
+        display:block !important;position:static !important;
+        font-family:"PingFang SC","Microsoft YaHei","SimSun",serif;
+        color:#1a1a1a;font-size:11px;line-height:1.3;background:transparent;
+    }
+    .print-area *{background:transparent !important}
+
+    /* ---------- 抬头 ---------- */
+    .print-header{
+        display:flex;justify-content:space-between;align-items:flex-end;
+        border-bottom:2px solid #333;padding-bottom:4px;margin-bottom:6px;
+    }
+    .ph-title{font-size:17px;font-weight:700;color:#1a1a1a}
+    .ph-sub{font-size:9px;color:#666;margin-top:1px;white-space:nowrap}
+    .ph-right{text-align:right}
+    .ph-brand{font-size:12px;font-weight:600;color:#333}
+    .ph-date{font-size:9px;color:#999;margin-top:1px;white-space:nowrap}
+
+    /* ---------- 人民币净值横幅 ---------- */
+    .print-cny-banner{
+        display:flex;justify-content:space-between;align-items:center;
+        border:1.5px solid #333;border-radius:4px;
+        padding:5px 12px;margin-bottom:7px;
+    }
+    .pcb-label{font-size:11px;color:#555;white-space:nowrap}
+    .pcb-value{font-size:22px;font-weight:700;color:#1a1a1a;font-variant-numeric:tabular-nums;letter-spacing:.5px;white-space:nowrap}
+
+    /* ---------- 账目表格 ---------- */
+    .print-table{width:100%;border-collapse:collapse;margin-bottom:8px;table-layout:fixed}
+    .print-table th{
+        color:#1a1a1a;font-size:11px;font-weight:700;
+        padding:3px 4px;border:1px solid #555;text-align:center;
+        white-space:nowrap;border-bottom:2px solid #333;
+    }
+    .print-table td{
+        padding:2px 4px;border:1px solid #ccc;font-size:11px;vertical-align:middle;
+        line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .col-no{text-align:center;width:22px;color:#999}
+    .col-date{text-align:center;width:58px}
+    .col-type{text-align:center;width:42px}
+    .col-detail{word-break:break-all}
+    .col-people{font-size:10px;color:#666;width:110px}
+    .col-amt{text-align:right;font-weight:700;font-size:13px;color:#1a1a1a}
+    .col-loan{font-size:10px;color:#555;width:75px}
+
+    /* 类型标签（打印专用，纯文字无边框） */
+    .ptag{font-size:11px;font-weight:700;padding:0;margin:0;background:transparent !important}
+    .pt-支出{color:#c0392b}
+    .pt-收入{color:#1e8449}
+    .pt-转账{color:#2471a3}
+
+    /* 货币单位 */
+    .pcur{font-size:10px;color:#666;font-weight:600;margin-left:2px;white-space:nowrap}
+
+    /* ---------- 汇总表格 ---------- */
+    .print-summary{width:100%;border-collapse:collapse;margin-bottom:6px}
+    .print-summary th{
+        color:#1a1a1a;font-size:11px;font-weight:700;
+        padding:4px 6px;border:1px solid #555;text-align:center;
+        white-space:nowrap;border-bottom:2px solid #333;
+    }
+    .print-summary td{
+        padding:4px 6px;border:1px solid #ccc;font-size:12px;text-align:center;
+        font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;
+    }
+    .ps-cur{font-weight:700;text-align:left !important}
+    .ps-exp{color:#c0392b;font-size:13px}
+    .ps-inc{color:#1e8449;font-size:13px}
+    .ps-net{font-weight:700;font-size:13px}
+    .ps-cny{color:#1a1a1a;font-weight:700;font-size:13px}
+
+    /* ---------- 页脚 ---------- */
+    .print-footer{
+        margin-top:4px;padding-top:3px;border-top:1px solid #ddd;
+        font-size:9px;color:#999;text-align:center;white-space:nowrap;
+    }
+
+    .empty{text-align:center;color:#999;padding:14px}
 }
 
 /* ========== iOS 安全区 ========== */

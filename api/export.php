@@ -1,9 +1,11 @@
 <?php
 /**
- * 导出账本为 JSON（带 BOM 兼容 Excel 打开）或 CSV
- *   GET api/export.php?code=xxx&format=json|csv
+ * 导出账本为 JSON / CSV / Excel(.xlsx)
+ *   GET api/export.php?code=xxx&format=json|csv|xlsx
  *
- * JSON 完整保留中文与结构，可再次导入；CSV 方便在 Excel 中查看。
+ * JSON 完整保留中文与结构，可再次导入；
+ * CSV 方便在 Excel 中查看；
+ * XLSX 生成真正的 Excel 文档（含表头样式与自动列宽）。
  */
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -44,13 +46,23 @@ try {
         foreach ($entries as $e) {
             fputcsv($out, [
                 $e['type'], $e['detail'], $e['payer'], $e['payee'],
-                $e['currency'], $e['amount'],
+                currency_name($e['currency'] ?? 'CNY'),
+                $e['amount'],
                 $e['is_loan'] ? '是' : '否',
                 $e['borrower'], $e['remark'],
                 $e['entry_date'] ?? '',
             ]);
         }
         fclose($out);
+        exit;
+    }
+
+    if ($format === 'xlsx') {
+        // 生成符合 Office Open XML 标准的 .xlsx 文件（无需第三方库）
+        $xlsx = build_xlsx($book, $entries);
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filenameSafe . '_' . $stamp . '.xlsx"');
+        echo $xlsx;
         exit;
     }
 
